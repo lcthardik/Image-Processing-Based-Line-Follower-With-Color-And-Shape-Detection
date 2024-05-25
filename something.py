@@ -39,17 +39,30 @@ lfrstop=0
 calllfr=lf.startlfr #can be lf.lfrinverted for inverted mode
 def lfrfunction():
 	global calllfr,lfrstop#,vs,cx_area,lfrstop
-	
+	lf.init()
 	calllfr()
-#def CMroutine():
-	#global CMframe,calllfr
-	
+def CMroutine():
+	global CMframe,calllfr
+	print('Now detecting color markers')
+	shape,color,number_of_shapes=CM.getColor(frame)
+	cv2.waitKey(0)
+	if number_of_shapes==0:
+
+		calllfr=lf.startlfrinverted
+	else:
+		calllfr=lf.startlfr
+		LED.addColor(color)
+		
+		print('color:',color,'shape:',shape,'number:',number_of_shapes)
+		ol.overlay(color,shape,number_of_shapes)
+
+		ol.showPlantation()
+		LED.blinkLED(color,number_of_shapes)
 
 lfrthread=Thread(target=lfrfunction,args=())
-#CM_overlay_LED=Thread(target=CMroutine,args=())
+CM_overlay_LED=Thread(target=CMroutine,args=())
 
 
-lf.init()
 lfrthread.start()
 
 while stop==0:
@@ -59,7 +72,7 @@ while stop==0:
 	#cv2.waitKey(0)
 	#cv2.waitKey(2) #Uncomment waitkey if stability issues persist
 	#cv2.waitKey(100)
-	if lf.ar>3000 and lf.ar<10000: #and (lf.cx>=70 and lf.cx<=110):
+	if lf.ar>3000 and (lf.cx>=70 and lf.cx<=110):
 		#print('CM detected')
 		#cv2.destroyAllWindows()
 		lf.stoplfr()
@@ -72,69 +85,14 @@ while stop==0:
 		print('motorspeed set to 0')
 
 		#lf.set_motor_speed(0.0,0.0)
-		lf.cap.stop()
+		vs.stop()
+		vs = PiVideoStream(resolution=(1280,720)).start()
 		time.sleep(0.5)
-		lf.cap = PiVideoStream(resolution=(640,480)).start()
-		time.sleep(0.5)
-		CMframe=lf.cap.read()
-		print ('HD frame read')
-		lf.cap.stop()
-		time.sleep(0.5)
-		lf.cap=PiVideoStream(resolution=(180,180)).start()
-		time.sleep(0.5)
-		print('Now detecting color markers')
-		shape,color,number_of_shapes=CM.getColor(CMframe)
-		if number_of_shapes==0:
-			print('INverted mode on')
-			#calllfr=lf.startlfrinverted
-			lfrthread =Thread(target=lfrfunction,args=())
-			lfrthread.start()
-			#time.sleep(0.5)
-			while(lf.num<=2):
-				print('should be at black white junction')
-				
-			#time.sleep(0.5)
-			lf.stoplfr()
-			time.sleep(0.5)
-			calllfr=lf.startlfrinverted
-			lfrthread =Thread(target=lfrfunction,args=())
-			lfrthread.start()
-			time.sleep(2.0)
-			while(lf.ar<3000):
-				print('should be on white line')
-				
-			#time.sleep(0.5)
-			lf.stoplfr()
-			time.sleep(0.5)
-			calllfr=lf.startlfr
-			lfrthread =Thread(target=lfrfunction,args=())
-			lfrthread.start()
-			while (lf.ar<5000):
-				print('Should be on second junction')
-			time.sleep(0.5)
-			lf.stoplfr()	
-			break
-			
-
-			break
-		else:
-			calllfr=lf.startlfr
-			LED.addColor(color)
-			
-			print('color:',color,'shape:',shape,'number:',number_of_shapes)
-			ol.overlay(color,shape,number_of_shapes)
-
-			ol.showPlantation()
-			LED.blinkLED(color,number_of_shapes)
-		while lfrthread.is_alive():
-				print('thread is alive')
-		lfrthread =Thread(target=lfrfunction,args=())
-		lfrthread.start()
-		time.sleep(0.5)
-		#while CM_overlay_LED.is_alive():
-		#		print('Abhi mai zinda hu')
-		#CM_overlay_LED=Thread(target=CMroutine,args=())
-		#CM_overlay_LED.start()
+		CMframe=vs.read()
+		vs.stop()
+		vs=PiVideoStream(resolution=(180,180)).start()
+		lf.startlfr()
+		CM_overlay_LED.start()
 		
 		
 	elif lf.ar>10000:

@@ -1,170 +1,250 @@
-import RPi.GPIO as GPIO
-import math
-import time
-import cv2
+##from __future__ import print_function
+from imutils.video.pivideostream import PiVideoStream
+#from imutils.video import FPS
+#from picamera.array import PiRGBArray
+from picamera import PiCamera
 import numpy as np
-
-GPIO.setwarnings(False)
+import cv2
+import RPi.GPIO as GPIO
+import time
+GPIO.setwarnings(False) 
 GPIO.setmode(GPIO.BOARD)
 
-Motor1a = 8
-Motor1b = 10
-Motor1e = 12
-Motor2a = 11
-Motor2b = 13
-Motor2e = 15
+Motor1A= 8 #Pin 1 of motor 1
+Motor1B= 10 #Pin 2 of motor 1
+Motor1E= 12 #Enable pin of motor 1
+Motor2A= 11 #Pin 1 of motor 2
+Motor2B= 13 #Pin 2 of motor 2
+Motor2E= 15 #Enable pin of motor 2
 
-kp = 0.038
-ki = 0
-kd = 0.4
-integral = 0
-last_propotional = 0
-invertedmode = 0
-maxi = 40
-lastPwm = {'left': maxi, 'right': maxi}
+GPIO.setup(Motor1A,GPIO.OUT)
+GPIO.setup(Motor1B,GPIO.OUT)
+GPIO.setup(Motor1E,GPIO.OUT)
+GPIO.setup(Motor2A,GPIO.OUT)
+GPIO.setup(Motor2B,GPIO.OUT)
+GPIO.setup(Motor2E,GPIO.OUT)
 
-GPIO.setup(Motor1a, GPIO.OUT)
-GPIO.setup(Motor1b, GPIO.OUT)
-GPIO.setup(Motor1e, GPIO.OUT)
-GPIO.setup(Motor2a, GPIO.OUT)
-GPIO.setup(Motor2b, GPIO.OUT)
-GPIO.setup(Motor2e, GPIO.OUT)
 
-pwmleft = GPIO.PWM(Motor1e, 1000)
-pwmright = GPIO.PWM(Motor2e, 1000)
-pwmleft.start(0)
-pwmright.start(0)
-kernel = np.ones((5, 5), np.uint8)
+pwmleft=GPIO.PWM(Motor1E,1000)
+pwmright=GPIO.PWM(Motor2E,1000)
+pwmleft.start(90)
+pwmright.start(90)
+stop=0
+cap = PiVideoStream(resolution=(180,180)).start()
+ar=0
+cx=0
+num=0
+#pwmleft.ChangeDutyCycle(60)
+#pwmright.ChangeDutyCycle(60)
 
-def strai():
-    GPIO.output(Motor1a, GPIO.LOW)
-    GPIO.output(Motor1b, GPIO.HIGH)
-    GPIO.output(Motor2a, GPIO.LOW)
-    GPIO.output(Motor2b, GPIO.HIGH)
 
-def right():
-    GPIO.output(Motor1a, GPIO.HIGH)
-    GPIO.output(Motor1b, GPIO.LOW)
-    GPIO.output(Motor2a, GPIO.LOW)
-    GPIO.output(Motor2b, GPIO.HIGH)
+def stoprobo():
+    global pwmleft,pwmright
+    pwmleft.ChangeDutyCycle(0)
+    pwmright.ChangeDutyCycle(0)
+def startrobo():
+    global pwmleft,pwmright
+    pwmright.ChangeDutyCycle(90)
+    pwmleft.ChangeDutyCycle(90)
+def init():
+    startrobo()
+    global cap
+    #cap = vs
+    
+    frame =cap.read()
+    time.sleep(2.0)
+def Forward():
+    
 
-def left():
-    GPIO.output(Motor1a, GPIO.LOW)
-    GPIO.output(Motor1b, GPIO.HIGH)
-    GPIO.output(Motor2a, GPIO.HIGH)
-    GPIO.output(Motor2b, GPIO.LOW)
+    GPIO.output(Motor1A,GPIO.HIGH)   ##motor 1
+    GPIO.output(Motor1B,GPIO.LOW)  ##
+    GPIO.output(Motor2A,GPIO.HIGH)   ##motor 2
+    GPIO.output(Motor2B,GPIO.LOW)  ##
 
-def useLastState():
-    global lastState, lastPwm
-    lastState()
-    set_motor_speed(lastPwm['left'], lastPwm['right'])
+def Left():
+    
 
-def setInvertedMode(args):
-    global invertedmode
-    invertedmode = args
+    GPIO.output(Motor1A,GPIO.LOW)   ##motor 1
+    GPIO.output(Motor1B,GPIO.HIGH)  ##
+    GPIO.output(Motor2A,GPIO.HIGH)   ##motor 2
+    GPIO.output(Motor2B,GPIO.LOW)  ##
 
-def setMode(pwmvalue):
-    global maxi, kp, kd, ki
-    if pwmvalue == 'high' or pwmvalue == 'High':
-        maxi = 100
-        kp = 0.095
-        kd = 0.9
-        ki = 0
-    elif pwmvalue == 'medium' or pwmvalue == 'Medium':
-        maxi = 70
-        kp = 0.0665
-        kd = 0.665
-        ki = 0
-    else:
-        maxi = 40
-        kp = 0.038
-        kd = 0.3
-        ki = 0
+def hLeft():
+    
+   # pwmright.start(35)
+    GPIO.output(Motor1A,GPIO.HIGH)   ##motor 1
+    GPIO.output(Motor1B,GPIO.LOW)  ##
+    GPIO.output(Motor2A,GPIO.LOW)   ##motor 2
+    GPIO.output(Motor2B,GPIO.LOW)  ##
 
-lastState = strai
+def Right():
+    
 
-def calculateError(frame, rownumber, cumulative=0):
-    global inverted, kernel
+    GPIO.output(Motor1A,GPIO.HIGH)   ##motor 1
+    GPIO.output(Motor1B,GPIO.LOW)  ##
+    GPIO.output(Motor2A,GPIO.LOW)   ##motor 2
+    GPIO.output(Motor2B,GPIO.HIGH)  ##
 
-    gray_line = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    ret, thresholded_line = cv2.threshold(gray_line, 127, 255, cv2.THRESH_BINARY)
-    thresholded_line = cv2.morphologyEx(thresholded_line, cv2.MORPH_CLOSE, kernel)
+def hRight():
+    
+   # pwmleft.start(35)
+    GPIO.output(Motor1A,GPIO.LOW)   ##motor 1
+    GPIO.output(Motor1B,GPIO.LOW)  ##
+    GPIO.output(Motor2A,GPIO.HIGH)   ##motor 2
+    GPIO.output(Motor2B,GPIO.LOW)  ##
 
-    thresh = thresholded_line[rownumber:rownumber + 1, :]
-    thresh = thresh.astype(int)
-    difference_array = np.diff(thresh)
-    position1 = np.argmax(difference_array)
-    position0 = np.argmin(difference_array)
 
-    if difference_array[0, position1] == 0 and thresh[319] == 0:
-        position1 = 320
-    else:
-        pass
 
-    if difference_array[0, position0] == 0 and thresh[0] == 0:
-        position0 = 0
-    else:
-        pass
+def Stop():
+    
 
-    if np.amin(difference_array) == np.amax(difference_array):
-        if thresh[0] == 255:
-            mean_position = 0
-            thickness = 0
-        else:
-            mean_position = 0
-            thickness = 320
-        return mean_position, thickness
-    else:
-        mean_position = (position1 + position0) / 2
-        mean_position = math.ceil(mean_position)
-        thickness = position1 - position0
-        return mean_position, thickness
+    GPIO.output(Motor1A,GPIO.LOW)   ##motor 1
+    GPIO.output(Motor1B,GPIO.LOW)  ##
+    GPIO.output(Motor2A,GPIO.LOW)   ##motor 2
+    GPIO.output(Motor2B,GPIO.LOW)
 
-def PID(mean_position):
-    global kp, kd, ki, last_propotional, integral, maxi, lastState, lastPwm
 
-    derivative = mean_position - last_propotional
-    integral += mean_position
-    last_propotional = mean_position
+def straight():
+    Forward()
 
-    if mean_position > 200:
-        right()
-        set_motor_speed(maxi, maxi)
-        lastState = right
-        lastPwm['left'] = maxi
-        lastPwm['right'] = maxi
-    elif mean_position < 100:
-        left()
-        set_motor_speed(maxi, maxi)
-        lastState = left
-        lastPwm['left'] = maxi
-        lastPwm['right'] = maxi
-    else:
-        lastState = strai
+#cap.set(3, 160)
+#cap.set(4, 120)
+def stoplfr():
+    global stop
+    stoprobo()
+    stop=1
+def startlfr():
+    print 'inside start LFR'
+    global stop,cap,cx,ar,num
+    startrobo()
+    stop=0
+    while stop==0:
+        frame =cap.read()
+        #cv2.imshow('frame',frame)
+        crop_img = frame[60:120, :]
+        gray = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
+        ret,thresh1 = cv2.threshold(gray,60,255,cv2.THRESH_BINARY_INV)
+        mask = cv2.erode(thresh1, None, iterations=2)
+        mask = cv2.dilate(mask, None, iterations=2)
+        im2,contours,hierarchy = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+        num=len(contours)
+        if num > 0:
+            c = max(contours, key=cv2.contourArea)
+            M = cv2.moments(c)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            cv2.line(crop_img,(cx,0),(cx,720),(255,0,0),1)
+            cv2.line(crop_img,(0,cy),(1280,cy),(255,0,0),1)
+            cv2.drawContours(crop_img, contours, -1, (0,255,0), 1)
+            #print(cy)
+            ar=cv2.contourArea(c)
+            #print(ar)
+            if cx >= 60 and cx <=120:
+                Forward()
+                
+            if cx > 120 and cx< 155 :
+                hRight()
+                
+            if cx>20 and cx < 60:
 
-        strai()
-        duty_change = kp * mean_position + kd * derivative + ki * integral
+                hLeft()
 
-        if duty_change > maxi:
-            duty_change = maxi
-        elif duty_change < (-maxi):
-            duty_change = -maxi
-        else:
-            pass
+            if cx>= 155 :
+                
+                Left()  
 
-        if duty_change > 0:
-            set_motor_speed(maxi - duty_change, maxi)
-            lastPwm['left'] = maxi - duty_change
-            lastPwm['right'] = maxi
-        else:
-            set_motor_speed(maxi, maxi - math.fabs(duty_change))
-            lastPwm['left'] = maxi
-            lastPwm['right'] = maxi - math.fabs(duty_change)
+            if cx<=20:
 
-def set_motor_speed(left_motor_speed, right_motor_speed):
-    global pwmright, pwmleft
-    pwmleft.ChangeDutyCycle(float(left_motor_speed))
-    pwmright.ChangeDutyCycle(float(right_motor_speed))
+                Right()
 
-if __name__ == '__main__':
-    pass
+            if cx>110 and cy>=40:
+
+                Left()
+
+            if cx<70 and cy>=40:
+                
+                Right()
+                
+            else:
+
+                pass
+
+     
+        #cv2.imshow('frame',crop_img)
+        if stop==1:
+            
+            break
+
+
+def startlfrinverted():
+    print 'executing inverted'
+    global stop,cap,cx,ar,num
+    startrobo()
+    stop=0
+    while stop==0:
+        frame =cap.read()
+        #cv2.imshow('frame',frame)
+        crop_img = frame[60:120, :]
+        gray = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
+        ret,thresh1 = cv2.threshold(gray,60,255,cv2.THRESH_BINARY)
+        mask = cv2.erode(thresh1, None, iterations=2)
+        mask = cv2.dilate(mask, None, iterations=2)
+        #x=np.count_nonzero(thresh1[178:179,:])
+        #print x
+        #if x>50:
+
+        #    print 'Inverted region'
+        #    thresh1=255-thresh1
+        #else:
+        #    pass
+        im2,contours,hierarchy = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+        num=len(contours)
+        if num > 0:
+            c = max(contours, key=cv2.contourArea)
+            M = cv2.moments(c)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            cv2.line(crop_img,(cx,0),(cx,720),(255,0,0),1)
+            cv2.line(crop_img,(0,cy),(1280,cy),(255,0,0),1)
+            cv2.drawContours(crop_img, contours, -1, (0,255,0), 1)
+            #print(cy)
+            ar=cv2.contourArea(c)
+            #print(ar)
+            if cx >= 60 and cx <=120:
+                Forward()
+                
+            if cx > 120 and cx< 155 :
+                hRight()
+                
+            if cx>20 and cx < 60:
+
+                hLeft()
+
+            if cx>= 155 :
+                
+                Left()  
+
+            if cx<=20:
+
+                Right()
+
+            if cx>110 and cy>=40:
+
+                Left()
+
+            if cx<70 and cy>=40:
+                
+                Right()
+                
+            else:
+
+                pass
+
+     
+        #cv2.imshow('frame',crop_img)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            
+            break
+
+    
+    
