@@ -8,4 +8,7 @@ This project is based on a Line Following Robot. Instead of traditional sensors,
 * Encoder DC Motors
 * Motor Driver
 
+## Demo
+![Demo](imageprocessinglinefollower.gif)
+
 [Working Video](https://youtu.be/wlBHm5I5n0k)
